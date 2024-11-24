@@ -165,7 +165,7 @@
             backgroundColor: grey,
             color: white,
           }).loc(150, 50);
-          scorer.score = 0;
+          scorer.score = 1200;
 
           const hitSound = new Aud("hit.mp3");
           const getBadgeSound = new Aud("get-badge.mp3");
@@ -249,7 +249,7 @@
                 });
             }
 
-            if (scorer.score <= -1200) {
+            if (scorer.score <= 0) {
               Ticker.removeAll();
               zog("game over");
               flakeInterval.clear();
