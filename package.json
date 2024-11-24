@@ -1,0 +1,12 @@
+{
+    "name": "snowman-game",
+    "version": "1.0.0",
+    "description": "Snowman collecting game",
+    "scripts": {
+      "start": "serve .",
+      "build": "echo 'No build step required'"
+    },
+    "dependencies": {
+      "serve": "^14.2.1"
+    }
+  }
