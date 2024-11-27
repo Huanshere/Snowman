@@ -27,7 +27,12 @@
         ...flakes,
         ...badges,
         ...badgesDash,
+        "gf_Bungee+Shade",
+        "gf_Bungee+Inline",
+        "gf_Bungee",
         "snowman.png",
+        "snowman-scarf.png",
+        "snowman-start.png",
         "hit.mp3",
         "intro.mp3",
         "flake.mp3",
@@ -38,8 +43,25 @@
       const path = "public/assets/";
       new Frame(FIT, 1024, 768, darker, dark, ready, assets, path);
       function ready() {
-        new Pane("START").show(makeIntro);
-
+        
+        const startButton = new Label({
+          text: "START",
+          size: 100,
+          font: "Bungee",
+          color: black,
+          backgroundColor: white,
+          padding: 40,
+          corner: 10,
+        }).center()
+        .tap(()=>{
+          zog("tapping");
+          startButton.removeFrom();
+          startPic.removeFrom();
+          makeIntro();
+        });
+        const startPic = new Pic("snowman-start.png")
+        startPic.reg(CENTER).sca(0.5).addTo().loc(420, 240).top();
+        
         let tile;
         let snowman;
         function makeIntro() {
@@ -79,23 +101,29 @@
 
           snowman.wiggle("y", snowman.y, 10, 50, 0.6, 1);
 
-          const message = new Container(W, H).loc(130).animate({
+          const message = new Container(W, H).loc(130).bot().animate({
             from: true,
             props: { y: -H },
             time: 2.5,
           });
-
+          
+          //new Rectangle(W-60, H-160, "#D03B3B").alp(1).pos(0,0,RIGHT,TOP,message).bot();
           new Rectangle(350, H, white).alp(0.2).center(message);
 
-          new Label("SNOWMAN", null, null, white).center(message).mov(0, -50);
+          new Label("SNOWMAN", 86, "Bungee+Shade", white).center(message).mov(0, -160);
+          new Label("BY AURELIA", 30, "Bungee+Inline", white).center(message).mov(0, 180);
+          
+          STYLE = {size:50,font:"Bungee", once:true};
           new Button({
+            width: 200,
+            height: 80,
             label: "PLAY",
             bgColor: "#0CB04A",
             rollBgColor: "#D03B3B",
             corner: 6,
           })
             .center(message)
-            .mov(0, 50)
+            .mov(0, 20)
             .tap(() => {
               message.animate({ y: -H }, 0.5, null, makeGame);
               new Aud("start.mp3").play();
@@ -227,20 +255,22 @@
               new Aud("win.mp3").play();
 
               const gameWin = new Container(W, H).center().top();
-              new Label("YOU WIN!", 60, null, white)
+              new Label("YOU WIN!",86, "Bungee+Shade", white)
                 .center(gameWin)
-                .mov(0, -50);
+                .mov(0, -120);
 
+
+              STYLE = {size:40,font:"Bungee", once:true};
               new Button({
                 width: 300,
-                height: 60,
+                height: 100,
                 label: "PLAY AGAIN",
                 bgColor: "#0CB04A",
                 rollBgColor: "#D03B3B",
                 corner: 6,
               })
                 .center(gameWin)
-                .mov(0, 50)
+                .mov(0, 80)
                 .tap(() => {
                   gameWin.removeFrom();
                   F.color = darker;
@@ -264,20 +294,21 @@
 
               // Add game over message and restart button
               const gameOver = new Container(W, H).center().top();
-              new Label("GAME OVER", 60, null, white)
+              new Label("GAME OVER", 86, "Bungee+Shade", white)
                 .center(gameOver)
-                .mov(0, -50);
+                .mov(0, -120);
 
+              STYLE = {size:40,font:"Bungee", once:true};
               new Button({
                 width: 300,
-                height: 60,
+                height: 100,
                 label: "PLAY AGAIN",
                 bgColor: "#0CB04A",
                 rollBgColor: "#D03B3B",
                 corner: 6,
               })
                 .center(gameOver)
-                .mov(0, 50)
+                .mov(0, 80)
                 .tap(() => {
                   gameOver.removeFrom();
                   F.color = darker;
