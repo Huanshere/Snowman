@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>ZIM - Code Creativity</title>
+
+    <!-- zimjs.com - JavaScript Canvas Framework -->
+    <script type="module">
+      import zim from "https://zimjs.com/cdn/017/zim_game";
+
+      const flakes = [
+        "flake1.png",
+        "flake2.png",
+        "flake3.png",
+        "flake4.png",
+        "flake5.png",
+        "flake6.png",
+      ];
+      const badges = ["badge1.png", "badge2.png", "badge3.png", "badge4.png"];
+      const badgesDash = [
+        "badge1-dash.png",
+        "badge2-dash.png",
+        "badge3-dash.png",
+        "badge4-dash.png",
+      ];
+      const assets = [
+        ...flakes,
+        ...badges,
+        ...badgesDash,
+        "gf_Bungee+Shade",
+        "gf_Bungee+Inline",
+        "gf_Bungee",
+        "snowman.png",
+        "snowman-scarf.png",
+        "snowman-start.png",
+        "hit.mp3",
+        "intro.mp3",
+        "flake.mp3",
+        "lose.mp3",
+        "play.mp3",
+        "start.mp3",
+      ];
+      const path = "public/assets/";
+      new Frame(FIT, 1024, 768, darker, dark, ready, assets, path);
+      function ready() {
+        makeGame();
+        function makeGame() {
+          zog("makeGame");
+
+          let snowman = new Pic("snowman.png")
+            .reg(CENTER)
+            .sca(0.025)
+            .loc(300, 400)
+            .addTo();
+
+          const mc = new MotionController({
+            target: snowman,
+            type: "mousemove",
+            speed: 20,
+          });
+
+          const hitSound = new Aud("hit.mp3");
+
+          const board = new Board({
+            size: 80,
+            cols: 12,
+            rows: 7,
+            isometric: false,
+            backgroundColor: darker,
+            borderColor: grey,
+            borderWidth: 2,
+          })
+            .center()
+            .mov(0, 60)
+            .bot();
+
+          const gameState = {
+            level: 1,
+            currentSequence: [],
+            expectedSequence: [],
+            playerProgress: 0,
+            isShowingSequence: true,
+            badges: [false, false, false, false],
+          };
+
+          function getFlakeConfig(level) {
+            const configs = {
+              1: { count: 2, start: 40, end: 60 },
+              2: { count: 3, start: 30, end: 70 },
+              3: { count: 4, start: 20, end: 80 },
+              4: { count: 5, start: 10, end: 90 },
+            };
+            return configs[level] || configs[4]; // Default to max values if level > 4
+          }
+
+          function makeLevel(level) {
+            const config = getFlakeConfig(gameState.level);
+            const flakeBeads = new Beads({
+              path: new Squiggle({
+                color: grey,
+                points: [
+                  [-459.9, -154.1, 0, 0, -395.2, -326.1, 395.2, 326.1],
+                  [316.2, -154.1, 0, 0, 0, 0, 0, 0, "none"],
+                ],
+              }),
+              obj: series(
+                new Pic("flake1.png").reg(CENTER).sca(0.5).alp(0),
+                new Pic("flake2.png").reg(CENTER).sca(0.5).alp(0),
+                new Pic("flake3.png").reg(CENTER).sca(0.5).alp(0),
+                new Pic("flake4.png").reg(CENTER).sca(0.5).alp(0),
+                new Pic("flake5.png").reg(CENTER).sca(0.5).alp(0),
+                new Pic("flake6.png").reg(CENTER).sca(0.5).alp(0)
+              ).mix(),
+              count: config.count,
+              interactive: false,
+              startPercent: config.start,
+              endPercent: config.end,
+            })
+              .addTo()
+              .pos(0, -10, CENTER, TOP);
+
+            //zog("percents", flakeBeads.percents);
+            gameState.expectedSequence = [...Array(flakeBeads.count).keys()];
+            zog("expectedSequence", gameState.expectedSequence);
+
+            //animate beads to alpha 1
+            flakeBeads.beads.animate({
+              props: { alpha: 1 },
+              time: 1,
+              sequence: 0.1,
+            });
+
+            timeout(3, () => {
+              flakeBeads.items.forEach((flake) => {
+                zog("beadNum", flake.beadNum);
+                board.position(flake, rand(0, 11), rand(0, 6));
+                flake.animate({
+                  props: { alpha: 0 },
+                  time: 6,
+                  call: () => {
+                    if (flakeBeads.items.every((flake) => flake.alpha === 0)) {
+                      gameState.level++;
+                      flakeBeads.removeFrom();
+                      zog("level", gameState.level);
+                      makeLevel(gameState.level);
+                    }
+                  },
+                });
+              });
+
+              Ticker.add(() => {
+                flakeBeads.beads.loop((flake) => {
+                  if (flake.hitTestBounds(snowman)) {
+                    //flake.removeFrom();
+                    const hitOrder = gameState.currentSequence.push(
+                      flake.beadNum
+                    );
+                    zog("hitOrder", hitOrder);
+                    hitSound.play();
+                  }
+                }, true);
+              });
+            });
+          } // end makeLevel
+          makeLevel(gameState.level);
+        } // end makeGame
+      } // end ready
+    </script>
+    <meta name="viewport" content="width=device-width, user-scalable=no" />
+    <meta
+      name="description"
+      content="Snowman collecting game - Catch snowflakes and collect badges!"
+    />
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" href="assets/snowman.png" />
+  </head>
+  <body>
+    <div
+      id="loading"
+      style="
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+      "
+    >
+      Loading...
+    </div>
+    <script>
+      window.addEventListener("load", () => {
+        document.getElementById("loading").style.display = "none";
+      });
+    </script>
+  </body>
+</html>

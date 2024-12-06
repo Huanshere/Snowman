@@ -155,216 +155,118 @@
             speed: 20,
           });
 
-          // Game state management
+          // Update game state management
           const gameState = {
             level: 1,
             currentSequence: [],
-            playerProgress: 0,
+            playerSequence: [],
             isShowingSequence: true,
-            badges: [false, false, false, false],
-            flakesPerLevel: [2, 3, 4, 4, 5, 6, 6, 6, 6, 6],
+            score: 0,
+            maxFlakes: 5, // Maximum flakes per level
           };
 
-          const stuffNum = {
-            level1: 2,
-            level2: 3,
-            level3: 4,
-            level4: 5,
-            level5: 6,
-            level6: 7,
-            level7: 7,
-            level8: 7,
-            level9: 7,
-            level10: 7,
-          };
+          // Create sequence display at top
+          const sequenceDisplay = new Container(W, 100).pos(0, 50, CENTER, TOP);
 
-          // const collectedBadges = [false, false, false, false];
-          // const badgeTile = new Tile(badgesDash, 4, 1, 20, 0, true).pos(
-          //   0,
-          //   10,
-          //   CENTER,
-          //   TOP
-          // );
-          // const badgeContainer = new Container(W - 100, H - 100).center();
-          // const badgeInterval = interval(6, () => {
-          //   const badge = new Pic(badges[rand(0, 3)])
-          //     .alp(0)
-          //     .sca(0.025)
-          //     .reg(CENTER)
-          //     .loc(rand(100, W - 100), rand(100, H - 100), badgeContainer)
-          //     .animate({
-          //       props: { alpha: 1 },
-          //       time: rand(2, 3),
-          //       call: (target) => {
-          //         target.done = true;
-          //       },
-          //     });
-          // });
+          // Function to show sequence
+          function showSequence() {
+            gameState.isShowingSequence = true;
+            gameState.playerSequence = [];
 
-          const flakeBeads = new Beads({
-            path: new Squiggle({
-              color: grey,
-              points: [
-                [-459.9, -154.1, 0, 0, -395.2, -326.1, 395.2, 326.1],
-                [316.2, -154.1, 0, 0, 0, 0, 0, 0, "none"],
-              ],
-            }),
-            obj: new Pic(flakes[rand(0, 5)]).reg(CENTER).sca(0.6).top(),
-            count: 4,
-            interactive: false,
-          })
-            .addTo()
-            .pos(0, -10, CENTER, TOP);
+            // Generate new sequence for current level
+            const numFlakes = Math.min(
+              gameState.level + 1,
+              gameState.maxFlakes
+            );
+            gameState.currentSequence = [];
 
-          const snowflakes = new Container(W - 50, H - 50).center();
-          //.outline(grey);
+            // Create flakes in sequence
+            loop(numFlakes, (i) => {
+              const flakeIndex = rand(0, 5);
+              gameState.currentSequence.push(flakeIndex);
 
-          // const flakeSound = new Aud("flake.mp3", 0.5);
-          // const flakeInterval = interval(rand(2, 3), () => {
-          //   flakeSound.play();
-          //   const flake = new Pic(flakes[rand(0, 5)])
-          //     .alp(0)
-          //     .sca(0.5)
-          //     .loc(rand(50, W - 100), rand(50, H - 100), snowflakes)
-          //     .reg(CENTER)
-          //     .animate({
-          //       props: { alpha: 1 },
-          //       time: rand(2, 3),
-          //       call: (target) => {
-          //         target.done = true;
-          //       },
-          //     });
-          // });
+              const flake = new Pic(flakes[flakeIndex])
+                .sca(0.5)
+                .reg(CENTER)
+                .addTo(sequenceDisplay)
+                .pos(100 + i * 150, 0);
 
-          // const scorer = new Scorer({
-          //   backgroundColor: grey,
-          //   color: white,
-          // }).loc(150, 50);
-          // scorer.score = 1200;
+              // Animate each flake in sequence
+              flake.animate({
+                wait: i * 1000,
+                props: { alpha: 1 },
+                time: 0.5,
+                rewind: true,
+              });
+            });
 
-          // const hitSound = new Aud("hit.mp3");
-          // const getBadgeSound = new Aud("get-badge.mp3");
+            // After showing sequence, scatter flakes
+            timeout(numFlakes * 1000 + 1000, scatterFlakes);
+          }
 
-          // Ticker.add(() => {
-          //   scorer.score -= 1;
-          //   snowflakes.loop((flake) => {
-          //     if (flake.done) flake.removeFrom();
-          //     else {
-          //       if (flake.hitTestBounds(snowman)) {
-          //         flake.removeFrom();
-          //         scorer.score += 100;
-          //         hitSound.play();
-          //       }
-          //     }
-          //   }, true); // loop backwards when removing
+          // Function to scatter flakes for collection
+          function scatterFlakes() {
+            gameState.isShowingSequence = false;
+            sequenceDisplay.removeFrom();
 
-          // badgeContainer.loop((badge) => {
-          //   if (badge.done) badge.removeFrom();
-          //   else {
-          //     if (badge.hitTestBounds(snowman)) {
-          //       const badgePath = badge.src.split("/").pop();
-          //       const badgeIndex = badges.findIndex((b) => b === badgePath);
+            // Create scattered flakes
+            gameState.currentSequence.forEach((flakeIndex) => {
+              const flake = new Pic(flakes[flakeIndex])
+                .sca(0.5)
+                .reg(CENTER)
+                .pos(rand(100, W - 100), rand(100, H - 100))
+                .addTo(snowflakes)
+                .animate({
+                  props: { alpha: 1 },
+                  time: 0.5,
+                });
 
-          //       if (badgeIndex !== -1) {
-          //         collectedBadges[badgeIndex] = true;
+              // Add hit test for collection
+              flake.on("animation", () => {
+                if (flake.hitTestBounds(snowman)) {
+                  const correctIndex = gameState.playerSequence.length;
+                  gameState.playerSequence.push(flakeIndex);
 
-          //         const newBadge = new Pic(badges[badgeIndex])
-          //           .reg(CENTER)
-          //           .sca(0.02)
-          //           .pos(
-          //             badgeTile.items[badgeIndex].x - 40,
-          //             badgeTile.items[badgeIndex].y - 40,
-          //             null,
-          //             null,
-          //             badgeTile
-          //           );
+                  flake.removeFrom();
+                  new Aud("flake.mp3").play();
 
-          //         badge.removeFrom();
-          //         getBadgeSound.play();
+                  // Check if sequence is complete
+                  if (
+                    gameState.playerSequence.length ===
+                    gameState.currentSequence.length
+                  ) {
+                    checkSequence();
+                  }
+                }
+              });
+            });
+          }
 
-          //         zog("Badge collected:", badgeIndex);
-          //         zog("New src:", path + badges[badgeIndex]);
-          //       }
-          //     }
-          //   }
-          // }, true);
+          // Function to check if collected sequence is correct
+          function checkSequence() {
+            const correct = gameState.playerSequence.every(
+              (flake, i) => flake === gameState.currentSequence[i]
+            );
 
-          //   if (collectedBadges.every((badge) => badge === true)) {
-          //     Ticker.removeAll();
-          //     flakeInterval.clear();
-          //     badgeInterval.clear();
-          //     scorer.removeFrom();
-          //     snowflakes.removeFrom();
-          //     badgeTile.removeFrom();
-          //     stopAnimate();
-          //     mc.enabled = false;
-          //     F.color = darker;
-          //     new Aud("win.mp3").play();
+            if (correct) {
+              gameState.score += 10;
+              gameState.level = Math.min(gameState.level + 1, 5);
+              timeout(1000, showSequence);
+            } else {
+              // Game over handling
+              snowflakes.removeFrom();
+              new Label("Wrong Sequence! Game Over", 50, "Bungee", white)
+                .center()
+                .animate({
+                  props: { alpha: 0 },
+                  wait: 2000,
+                  call: makeGame,
+                });
+            }
+          }
 
-          //     const gameWin = new Container(W, H).center().top();
-          //     new Label("YOU WIN!", 86, "Bungee+Shade", white)
-          //       .center(gameWin)
-          //       .mov(0, -120);
-
-          //     STYLE = { size: 40, font: "Bungee", once: true };
-          //     new Button({
-          //       width: 300,
-          //       height: 100,
-          //       label: "PLAY AGAIN",
-          //       bgColor: "#0CB04A",
-          //       rollBgColor: "#D03B3B",
-          //       corner: 6,
-          //     })
-          //       .center(gameWin)
-          //       .mov(0, 80)
-          //       .tap(() => {
-          //         gameWin.removeFrom();
-          //         F.color = darker;
-          //         F.alpha = 1;
-          //         makeGame();
-          //       });
-          //   }
-
-          //   if (scorer.score <= 0) {
-          //     Ticker.removeAll();
-          //     zog("game over");
-          //     flakeInterval.clear();
-          //     badgeInterval.clear();
-          //     scorer.removeFrom();
-          //     snowflakes.removeFrom();
-          //     badgeTile.removeFrom();
-          //     stopAnimate();
-          //     mc.enabled = false;
-          //     F.color = darker;
-          //     new Aud("lose.mp3").play();
-
-          //     // Add game over message and restart button
-          //     const gameOver = new Container(W, H).center().top();
-          //     new Label("GAME OVER", 86, "Bungee+Shade", white)
-          //       .center(gameOver)
-          //       .mov(0, -120);
-
-          //     STYLE = { size: 40, font: "Bungee", once: true };
-          //     new Button({
-          //       width: 300,
-          //       height: 100,
-          //       label: "PLAY AGAIN",
-          //       bgColor: "#0CB04A",
-          //       rollBgColor: "#D03B3B",
-          //       corner: 6,
-          //     })
-          //       .center(gameOver)
-          //       .mov(0, 80)
-          //       .tap(() => {
-          //         gameOver.removeFrom();
-          //         F.color = darker;
-          //         F.alpha = 1;
-          //         makeGame();
-          //       });
-          //   }
-          // });
-
-          S.update();
+          // Start the game
+          showSequence();
         } // end makeGame
       } // end ready
     </script>
