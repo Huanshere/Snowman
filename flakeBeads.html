@@ -149,9 +149,9 @@
               });
 
               Ticker.add(() => {
-                flakeBeads.beads.loop((flake) => {
+                board.pieces.loop((flake) => {
                   if (flake.hitTestBounds(snowman)) {
-                    //flake.removeFrom();
+                    flake.removeFrom();
                     const hitOrder = gameState.currentSequence.push(
                       flake.beadNum
                     );
