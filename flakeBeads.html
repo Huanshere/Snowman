@@ -52,6 +52,7 @@
             .sca(0.025)
             .loc(300, 400)
             .addTo();
+          //.outline();
 
           const mc = new MotionController({
             target: snowman,
@@ -60,19 +61,6 @@
           });
 
           const hitSound = new Aud("hit.mp3");
-
-          const board = new Board({
-            size: 80,
-            cols: 12,
-            rows: 7,
-            isometric: false,
-            backgroundColor: darker,
-            borderColor: grey,
-            borderWidth: 2,
-          })
-            .center()
-            .mov(0, 60)
-            .bot();
 
           const gameState = {
             level: 1,
@@ -95,6 +83,19 @@
 
           function makeLevel(level) {
             const config = getFlakeConfig(gameState.level);
+            const board = new Board({
+              size: 80,
+              cols: 12,
+              rows: 7,
+              isometric: false,
+              backgroundColor: darker,
+              borderColor: grey,
+              borderWidth: 2,
+            })
+              .center()
+              .mov(0, 60)
+              .bot();
+
             const flakeBeads = new Beads({
               path: new Squiggle({
                 color: grey,
@@ -119,49 +120,108 @@
               .addTo()
               .pos(0, -10, CENTER, TOP);
 
-            //zog("percents", flakeBeads.percents);
-            gameState.expectedSequence = [...Array(flakeBeads.count).keys()];
-            zog("expectedSequence", gameState.expectedSequence);
+            flakeBeads.items.forEach((flake, index) => {
+              flake.originalIndex = index;
+              zog("Set original index:", index, "for flake");
+            });
 
-            //animate beads to alpha 1
+            gameState.expectedSequence = [...Array(flakeBeads.count).keys()];
+
+            // Show flakes on chain first
             flakeBeads.beads.animate({
               props: { alpha: 1 },
               time: 1,
               sequence: 0.1,
             });
 
-            timeout(3, () => {
-              flakeBeads.items.forEach((flake) => {
-                zog("beadNum", flake.beadNum);
-                board.position(flake, rand(0, 11), rand(0, 6));
-                flake.animate({
-                  props: { alpha: 0 },
-                  time: 6,
-                  call: () => {
-                    if (flakeBeads.items.every((flake) => flake.alpha === 0)) {
-                      gameState.level++;
-                      flakeBeads.removeFrom();
-                      zog("level", gameState.level);
-                      makeLevel(gameState.level);
-                    }
-                  },
-                });
+            // Wait 5 seconds then distribute flakes
+            timeout(5, () => {
+              // Create array of all possible board positions
+              const positions = [];
+              for (let x = 0; x <= 11; x++) {
+                for (let y = 0; y <= 6; y++) {
+                  positions.push({ x, y });
+                }
+              }
+              // Shuffle positions array
+              for (let i = positions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [positions[i], positions[j]] = [positions[j], positions[i]];
+              }
+
+              flakeBeads.items.forEach((flake, index) => {
+                const pos = positions[index];
+                board.position(flake, pos.x, pos.y);
+                flake.isHit = false;
+                zog(
+                  "Placed flake with original index:",
+                  flake.originalIndex,
+                  "at position:",
+                  pos
+                );
               });
 
-              Ticker.add(() => {
+              let ticker = Ticker.add(() => {
                 board.pieces.loop((flake) => {
-                  if (flake.hitTestBounds(snowman)) {
-                    flake.removeFrom();
-                    const hitOrder = gameState.currentSequence.push(
-                      flake.beadNum
-                    );
-                    zog("hitOrder", hitOrder);
+                  if (flake.hitTestBounds(snowman) && !flake.isHit) {
+                    flake.isHit = true;
                     hitSound.play();
+
+                    if (
+                      !gameState.currentSequence.includes(flake.originalIndex)
+                    ) {
+                      gameState.currentSequence.push(flake.originalIndex);
+                      zog(
+                        "Hit flake with original index:",
+                        flake.originalIndex
+                      );
+                      zog("Current sequence:", gameState.currentSequence);
+
+                      // const isCorrectOrder = gameState.currentSequence.every(
+                      //   (num, index) =>
+                      //     num === gameState.expectedSequence[index]
+                      // );
+
+                      // if (isCorrectOrder) {
+                      //   zog("Correct order so far!");
+                      //   if (
+                      //     gameState.currentSequence.length ===
+                      //     gameState.expectedSequence.length
+                      //   ) {
+                      //     zog("Level complete! Perfect order!");
+                      //   }
+                      // } else {
+                      //   zog("Wrong order!");
+                      // }
+                    }
+
+                    flake.animate({
+                      props: { alpha: 0, scale: 0 },
+                      time: 0.5,
+                      call: () => {
+                        flake.removeFrom();
+                        const index = flakeBeads.items.indexOf(flake);
+                        if (index > -1) {
+                          flakeBeads.items.splice(index, 1);
+                        }
+                        zog("flakes left", flakeBeads.items.length);
+
+                        if (flakeBeads.items.length === 0) {
+                          //Ticker.remove(ticker);
+                          zog("currentSequence", gameState.currentSequence);
+                          board.removeFrom();
+                          flakeBeads.removeFrom();
+                          gameState.level++;
+                          makeLevel(gameState.level);
+                        }
+                      },
+                    });
                   }
                 }, true);
-              });
+              }); // end ticker
             });
           } // end makeLevel
+
           makeLevel(gameState.level);
         } // end makeGame
       } // end ready
