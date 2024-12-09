@@ -47,6 +47,22 @@
         function makeGame() {
           zog("makeGame");
 
+          const badgeTile = new Tile(badgesDash, 4, 1, 20, 0, true).pos(
+            0,
+            10,
+            CENTER,
+            TOP
+          );
+          const badgeContainer = new Container(W - 100, H - 100).center();
+
+          const scorer = new Scorer({
+            backgroundColor: grey,
+            color: white,
+            width: 100,
+            size: 24,
+          }).loc(80, 50);
+          scorer.score = 4000;
+
           let snowman = new Pic("snowman.png")
             .reg(CENTER)
             .sca(0.025)
@@ -61,6 +77,7 @@
           });
 
           const hitSound = new Aud("hit.mp3");
+          const badgeSound = new Aud("get-badge.mp3");
 
           const gameState = {
             level: 1,
@@ -76,13 +93,32 @@
               1: { count: 2, start: 40, end: 60 },
               2: { count: 3, start: 30, end: 70 },
               3: { count: 4, start: 20, end: 80 },
-              4: { count: 5, start: 10, end: 90 },
+              4: { count: 4, start: 20, end: 80 },
+              5: { count: 5, start: 10, end: 90 },
             };
-            return configs[level] || configs[4]; // Default to max values if level > 4
+            return configs[level] || configs[5]; // Default to max values if level > 4
           }
+
+          const badge = series(
+            new Pic("badge1.png").reg(CENTER).sca(0.02).alp(0),
+            new Pic("badge2.png").reg(CENTER).sca(0.02).alp(0),
+            new Pic("badge3.png").reg(CENTER).sca(0.02).alp(0),
+            new Pic("badge4.png").reg(CENTER).sca(0.019).alp(0),
+            new Pic("badge1.png").reg(CENTER).sca(0.02).alp(0),
+            new Pic("badge2.png").reg(CENTER).sca(0.02).alp(0),
+            new Pic("badge3.png").reg(CENTER).sca(0.02).alp(0),
+            new Pic("badge4.png").reg(CENTER).sca(0.019).alp(0)
+          );
 
           function makeLevel(level) {
             const config = getFlakeConfig(gameState.level);
+
+            const collectedBadgesInLevel = [];
+            const typeCount = {
+              flake: 0,
+              badge: 0,
+            };
+
             const board = new Board({
               size: 80,
               cols: 12,
@@ -96,7 +132,7 @@
               .mov(0, 60)
               .bot();
 
-            const flakeBeads = new Beads({
+            const beads = new Beads({
               path: new Squiggle({
                 color: grey,
                 points: [
@@ -105,6 +141,7 @@
                 ],
               }),
               obj: series(
+                badge,
                 new Pic("flake1.png").reg(CENTER).sca(0.5).alp(0),
                 new Pic("flake2.png").reg(CENTER).sca(0.5).alp(0),
                 new Pic("flake3.png").reg(CENTER).sca(0.5).alp(0),
@@ -120,15 +157,31 @@
               .addTo()
               .pos(0, -10, CENTER, TOP);
 
-            flakeBeads.items.forEach((flake, index) => {
-              flake.originalIndex = index;
-              zog("Set original index:", index, "for flake");
+            beads.items.forEach((bead, index) => {
+              bead.originalIndex = index;
+
+              if (bead.src) {
+                if (bead.src.includes("flake")) {
+                  bead.type = "flake";
+                  bead.flakeNumber = parseInt(bead.src.match(/flake(\d+)/)[1]);
+                  typeCount.flake++;
+                  zog(`Bead ${index} is Flake ${bead.flakeNumber}`);
+                } else if (bead.src.includes("badge")) {
+                  bead.type = "badge";
+                  bead.badgeNumber = parseInt(bead.src.match(/badge(\d+)/)[1]);
+                  typeCount.badge++;
+                  zog(`Bead ${index} is Badge ${bead.badgeNumber}`);
+                }
+              }
             });
 
-            gameState.expectedSequence = [...Array(flakeBeads.count).keys()];
+            zog("Level items count:", typeCount);
+
+            gameState.expectedSequence = [...Array(beads.count).keys()];
+            gameState.currentSequence = [];
 
             // Show flakes on chain first
-            flakeBeads.beads.animate({
+            beads.animate({
               props: { alpha: 1 },
               time: 1,
               sequence: 0.1,
@@ -149,68 +202,153 @@
                 [positions[i], positions[j]] = [positions[j], positions[i]];
               }
 
-              flakeBeads.items.forEach((flake, index) => {
+              beads.items.forEach((bead, index) => {
                 const pos = positions[index];
-                board.position(flake, pos.x, pos.y);
-                flake.isHit = false;
+                board.position(bead, pos.x, pos.y);
+                bead.isHit = false;
                 zog(
-                  "Placed flake with original index:",
-                  flake.originalIndex,
+                  "Placed bead with original index:",
+                  bead.originalIndex,
                   "at position:",
                   pos
                 );
               });
 
               let ticker = Ticker.add(() => {
-                board.pieces.loop((flake) => {
-                  if (flake.hitTestBounds(snowman) && !flake.isHit) {
-                    flake.isHit = true;
+                scorer.score -= 1;
+                board.pieces.loop((bead) => {
+                  if (bead.hitTestBounds(snowman) && !bead.isHit) {
+                    bead.isHit = true;
                     hitSound.play();
 
-                    if (
-                      !gameState.currentSequence.includes(flake.originalIndex)
-                    ) {
-                      gameState.currentSequence.push(flake.originalIndex);
-                      zog(
-                        "Hit flake with original index:",
-                        flake.originalIndex
-                      );
-                      zog("Current sequence:", gameState.currentSequence);
-
-                      // const isCorrectOrder = gameState.currentSequence.every(
-                      //   (num, index) =>
-                      //     num === gameState.expectedSequence[index]
-                      // );
-
-                      // if (isCorrectOrder) {
-                      //   zog("Correct order so far!");
-                      //   if (
-                      //     gameState.currentSequence.length ===
-                      //     gameState.expectedSequence.length
-                      //   ) {
-                      //     zog("Level complete! Perfect order!");
-                      //   }
-                      // } else {
-                      //   zog("Wrong order!");
-                      // }
+                    if (bead.type === "badge") {
+                      collectedBadgesInLevel.push({
+                        badgeNumber: bead.badgeNumber,
+                        originalIndex: bead.originalIndex,
+                      });
                     }
 
-                    flake.animate({
+                    zog("Hit object details:", {
+                      type: bead.type,
+                      index: bead.originalIndex,
+                      number:
+                        bead.type === "flake"
+                          ? bead.flakeNumber
+                          : bead.badgeNumber,
+                    });
+
+                    if (
+                      !gameState.currentSequence.includes(bead.originalIndex)
+                    ) {
+                      gameState.currentSequence.push(bead.originalIndex);
+
+                      if (bead.type === "flake") {
+                        zog(
+                          `Hit flake ${bead.flakeNumber} at position ${bead.originalIndex}`
+                        );
+                      } else if (bead.type === "badge") {
+                        zog(
+                          `Hit badge ${bead.badgeNumber} at position ${bead.originalIndex}`
+                        );
+                      }
+
+                      zog("Current sequence:", gameState.currentSequence);
+
+                      const isCorrectOrder = gameState.currentSequence.every(
+                        (num, index) =>
+                          num === gameState.expectedSequence[index]
+                      );
+
+                      if (isCorrectOrder) {
+                        zog("Correct order so far!");
+                        if (
+                          gameState.currentSequence.length ===
+                          gameState.expectedSequence.length
+                        ) {
+                          zog("Level complete! Perfect order!");
+
+                          // 使用 typeCount 计算分数
+                          const flakeScore = typeCount.flake * 200;
+                          const badgeScore = typeCount.badge * 400;
+                          const totalScore = flakeScore + badgeScore;
+
+                          scorer.score += totalScore;
+
+                          zog("Score calculation:", {
+                            flakeCount: typeCount.flake,
+                            badgeCount: typeCount.badge,
+                            flakeScore: flakeScore,
+                            badgeScore: badgeScore,
+                            totalAdded: totalScore,
+                            newTotalScore: scorer.score,
+                          });
+
+                          collectedBadgesInLevel.forEach((badgeInfo) => {
+                            const badgeIndex = badgeInfo.badgeNumber - 1;
+                            if (!gameState.badges[badgeIndex]) {
+                              gameState.badges[badgeIndex] = true;
+
+                              const newBadge = new Pic(badges[badgeIndex])
+                                .reg(CENTER)
+                                .sca(0.02)
+                                .pos(
+                                  badgeTile.items[badgeIndex].x - 40,
+                                  badgeTile.items[badgeIndex].y - 40,
+                                  null,
+                                  null,
+                                  badgeTile
+                                );
+
+                              badgeSound.play();
+                              zog("Badge collected:", badgeIndex);
+                            }
+                          });
+
+                          new Label({
+                            text: "Perfect Order!",
+                            color: green,
+                            backgroundColor: white,
+                            size: 40,
+                            corner: 10,
+                            padding: 20,
+                          })
+                            .center()
+                            .animate({ props: { alpha: 0 }, time: 2 });
+                        }
+                      } else {
+                        zog("Wrong order!");
+                        new Label({
+                          text: "Wrong Order!",
+                          color: red,
+                          backgroundColor: white,
+                          size: 40,
+                          corner: 10,
+                          padding: 20,
+                        })
+                          .center()
+                          .animate({
+                            props: { alpha: 0 },
+                            time: 2,
+                          });
+                      }
+                    }
+
+                    bead.animate({
                       props: { alpha: 0, scale: 0 },
                       time: 0.5,
                       call: () => {
-                        flake.removeFrom();
-                        const index = flakeBeads.items.indexOf(flake);
+                        bead.removeFrom();
+                        const index = beads.items.indexOf(bead);
                         if (index > -1) {
-                          flakeBeads.items.splice(index, 1);
+                          beads.items.splice(index, 1);
                         }
-                        zog("flakes left", flakeBeads.items.length);
+                        zog("beads left", beads.items.length);
 
-                        if (flakeBeads.items.length === 0) {
+                        if (beads.items.length === 0) {
                           //Ticker.remove(ticker);
                           zog("currentSequence", gameState.currentSequence);
                           board.removeFrom();
-                          flakeBeads.removeFrom();
+                          beads.removeFrom();
                           gameState.level++;
                           makeLevel(gameState.level);
                         }
