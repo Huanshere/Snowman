@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>ZIM - Code Creativity</title>
+
+    <!-- zimjs.com - JavaScript Canvas Framework -->
+    <script type="module">
+      import zim from "https://zimjs.com/cdn/017/zim_game";
+
+      const flakes = [
+        "flake1.png",
+        "flake2.png",
+        "flake3.png",
+        "flake4.png",
+        "flake5.png",
+        "flake6.png",
+      ];
+      const badges = ["badge1.png", "badge2.png", "badge3.png", "badge4.png"];
+      const badgesDash = [
+        "badge1-dash.png",
+        "badge2-dash.png",
+        "badge3-dash.png",
+        "badge4-dash.png",
+      ];
+      const assets = [
+        ...flakes,
+        ...badges,
+        ...badgesDash,
+        "gf_Bungee+Shade",
+        "gf_Bungee+Inline",
+        "gf_Bungee",
+        "snowman.png",
+        "snowman-scarf.png",
+        "snowman-start.png",
+        "hit.mp3",
+        "intro.mp3",
+        "flake.mp3",
+        "lose.mp3",
+        "play.mp3",
+        "start.mp3",
+        "win.mp3",
+      ];
+      const path = "public/assets/";
+      new Frame(FIT, 1024, 768, darker, dark, ready, assets, path);
+      function ready() {
+        makeGame();
+        function makeGame() {
+          zog("makeGame");
+
+          const badgeTile = new Tile(badgesDash, 4, 1, 20, 0, true).pos(
+            0,
+            10,
+            CENTER,
+            TOP
+          );
+          const badgeContainer = new Container(W - 100, H - 100).center();
+
+          const scorer = new Scorer({
+            backgroundColor: grey,
+            color: white,
+            width: 100,
+            size: 24,
+          }).loc(80, 50);
+          scorer.score = 100;
+
+          let snowman = new Pic("snowman.png")
+            .reg(CENTER)
+            .sca(0.025)
+            .loc(300, 400)
+            .addTo();
+          //.outline();
+
+          const mc = new MotionController({
+            target: snowman,
+            type: "mousemove",
+            speed: 20,
+          });
+
+          const hitSound = new Aud("hit.mp3");
+          const badgeSound = new Aud("get-badge.mp3");
+
+          const gameState = {
+            level: 1,
+            currentSequence: [],
+            expectedSequence: [],
+            playerProgress: 0,
+            isShowingSequence: true,
+            badges: [false, false, false, false],
+          };
+
+          function getFlakeConfig(level) {
+            const configs = {
+              1: { count: 2, start: 40, end: 60 },
+              2: { count: 3, start: 30, end: 70 },
+              3: { count: 4, start: 20, end: 80 },
+              4: { count: 4, start: 20, end: 80 },
+              5: { count: 5, start: 10, end: 90 },
+            };
+            return configs[level] || configs[5]; // Default to max values if level > 4
+          }
+
+          const badge = series(
+            new Pic("badge1.png").reg(CENTER).sca(0.02).alp(0),
+            new Pic("badge2.png").reg(CENTER).sca(0.02).alp(0),
+            new Pic("badge3.png").reg(CENTER).sca(0.02).alp(0),
+            new Pic("badge4.png").reg(CENTER).sca(0.019).alp(0),
+            new Pic("badge1.png").reg(CENTER).sca(0.02).alp(0),
+            new Pic("badge2.png").reg(CENTER).sca(0.02).alp(0),
+            new Pic("badge3.png").reg(CENTER).sca(0.02).alp(0),
+            new Pic("badge4.png").reg(CENTER).sca(0.019).alp(0)
+          );
+
+          function makeLevel(level) {
+            const config = getFlakeConfig(gameState.level);
+
+            const collectedBadgesInLevel = [];
+            const typeCount = {
+              flake: 0,
+              badge: 0,
+            };
+
+            const board = new Board({
+              size: 80,
+              cols: 12,
+              rows: 7,
+              isometric: false,
+              backgroundColor: darker,
+              borderColor: grey,
+              borderWidth: 2,
+            })
+              .center()
+              .mov(0, 60)
+              .bot();
+
+            const beads = new Beads({
+              path: new Squiggle({
+                color: grey,
+                points: [
+                  [-459.9, -154.1, 0, 0, -395.2, -326.1, 395.2, 326.1],
+                  [316.2, -154.1, 0, 0, 0, 0, 0, 0, "none"],
+                ],
+              }),
+              obj: series(
+                badge,
+                new Pic("flake1.png").reg(CENTER).sca(0.5).alp(0),
+                new Pic("flake2.png").reg(CENTER).sca(0.5).alp(0),
+                new Pic("flake3.png").reg(CENTER).sca(0.5).alp(0),
+                new Pic("flake4.png").reg(CENTER).sca(0.5).alp(0),
+                new Pic("flake5.png").reg(CENTER).sca(0.5).alp(0),
+                new Pic("flake6.png").reg(CENTER).sca(0.5).alp(0)
+              ).mix(),
+              count: config.count,
+              interactive: false,
+              startPercent: config.start,
+              endPercent: config.end,
+            })
+              .addTo()
+              .pos(0, -10, CENTER, TOP);
+
+            beads.items.forEach((bead, index) => {
+              bead.originalIndex = index;
+
+              if (bead.src) {
+                if (bead.src.includes("flake")) {
+                  bead.type = "flake";
+                  bead.flakeNumber = parseInt(bead.src.match(/flake(\d+)/)[1]);
+                  typeCount.flake++;
+                  zog(`Bead ${index} is Flake ${bead.flakeNumber}`);
+                } else if (bead.src.includes("badge")) {
+                  bead.type = "badge";
+                  bead.badgeNumber = parseInt(bead.src.match(/badge(\d+)/)[1]);
+                  typeCount.badge++;
+                  zog(`Bead ${index} is Badge ${bead.badgeNumber}`);
+                }
+              }
+            });
+
+            zog("Level items count:", typeCount);
+
+            gameState.expectedSequence = [...Array(beads.count).keys()];
+            gameState.currentSequence = [];
+
+            // Show flakes on chain first
+            beads.animate({
+              props: { alpha: 1 },
+              time: 1,
+              sequence: 0.1,
+            });
+
+            // Wait 5 seconds then distribute flakes
+            timeout(5, () => {
+              // Create array of all possible board positions
+              const positions = [];
+              for (let x = 0; x <= 11; x++) {
+                for (let y = 0; y <= 6; y++) {
+                  positions.push({ x, y });
+                }
+              }
+              // Shuffle positions array
+              for (let i = positions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [positions[i], positions[j]] = [positions[j], positions[i]];
+              }
+
+              beads.items.forEach((bead, index) => {
+                const pos = positions[index];
+                board.position(bead, pos.x, pos.y);
+                bead.isHit = false;
+                zog(
+                  "Placed bead with original index:",
+                  bead.originalIndex,
+                  "at position:",
+                  pos
+                );
+              });
+
+              let ticker = Ticker.add(() => {
+                scorer.score -= 1;
+                board.pieces.loop((bead) => {
+                  if (bead.hitTestBounds(snowman) && !bead.isHit) {
+                    bead.isHit = true;
+                    hitSound.play();
+
+                    if (bead.type === "badge") {
+                      collectedBadgesInLevel.push({
+                        badgeNumber: bead.badgeNumber,
+                        originalIndex: bead.originalIndex,
+                      });
+                    }
+
+                    zog("Hit object details:", {
+                      type: bead.type,
+                      index: bead.originalIndex,
+                      number:
+                        bead.type === "flake"
+                          ? bead.flakeNumber
+                          : bead.badgeNumber,
+                    });
+
+                    if (
+                      !gameState.currentSequence.includes(bead.originalIndex)
+                    ) {
+                      gameState.currentSequence.push(bead.originalIndex);
+
+                      if (bead.type === "flake") {
+                        zog(
+                          `Hit flake ${bead.flakeNumber} at position ${bead.originalIndex}`
+                        );
+                      } else if (bead.type === "badge") {
+                        zog(
+                          `Hit badge ${bead.badgeNumber} at position ${bead.originalIndex}`
+                        );
+                      }
+
+                      zog("Current sequence:", gameState.currentSequence);
+
+                      const isCorrectOrder = gameState.currentSequence.every(
+                        (num, index) =>
+                          num === gameState.expectedSequence[index]
+                      );
+
+                      if (isCorrectOrder) {
+                        zog("Correct order so far!");
+                        if (
+                          gameState.currentSequence.length ===
+                          gameState.expectedSequence.length
+                        ) {
+                          zog("Level complete! Perfect order!");
+
+                          // 使用 typeCount 计算分数
+                          const flakeScore = typeCount.flake * 200;
+                          const badgeScore = typeCount.badge * 400;
+                          const totalScore = flakeScore + badgeScore;
+
+                          scorer.score += totalScore;
+
+                          zog("Score calculation:", {
+                            flakeCount: typeCount.flake,
+                            badgeCount: typeCount.badge,
+                            flakeScore: flakeScore,
+                            badgeScore: badgeScore,
+                            totalAdded: totalScore,
+                            newTotalScore: scorer.score,
+                          });
+
+                          collectedBadgesInLevel.forEach((badgeInfo) => {
+                            const badgeIndex = badgeInfo.badgeNumber - 1;
+                            if (!gameState.badges[badgeIndex]) {
+                              gameState.badges[badgeIndex] = true;
+
+                              const newBadge = new Pic(badges[badgeIndex])
+                                .reg(CENTER)
+                                .sca(0.02)
+                                .pos(
+                                  badgeTile.items[badgeIndex].x - 40,
+                                  badgeTile.items[badgeIndex].y - 40,
+                                  null,
+                                  null,
+                                  badgeTile
+                                );
+
+                              badgeSound.play();
+                              zog("Badge collected:", badgeIndex);
+                            }
+                          });
+
+                          new Label({
+                            text: "Perfect Order!",
+                            color: green,
+                            backgroundColor: white,
+                            size: 40,
+                            corner: 10,
+                            padding: 20,
+                          })
+                            .center()
+                            .animate({ props: { alpha: 0 }, time: 2 });
+                        }
+                      } else {
+                        zog("Wrong order!");
+                        new Label({
+                          text: "Wrong Order!",
+                          color: red,
+                          backgroundColor: white,
+                          size: 40,
+                          corner: 10,
+                          padding: 20,
+                        })
+                          .center()
+                          .animate({
+                            props: { alpha: 0 },
+                            time: 2,
+                          });
+                      }
+                    }
+
+                    bead.animate({
+                      props: { alpha: 0, scale: 0 },
+                      time: 0.5,
+                      call: () => {
+                        bead.removeFrom();
+                        const index = beads.items.indexOf(bead);
+                        if (index > -1) {
+                          beads.items.splice(index, 1);
+                        }
+                        zog("beads left", beads.items.length);
+
+                        if (beads.items.length === 0) {
+                          //Ticker.remove(ticker);
+                          zog("currentSequence", gameState.currentSequence);
+                          board.removeFrom();
+                          beads.removeFrom();
+                          gameState.level++;
+                          makeLevel(gameState.level);
+                        }
+                      },
+                    });
+                  }
+                }, true);
+
+                // CHECK GAME OVER
+                if (scorer.score <= 0) {
+                  Ticker.removeAll();
+                  board.removeFrom();
+                  beads.removeFrom();
+                  badgeTile.removeFrom();
+                  scorer.removeFrom();
+                  stopAnimate();
+                  mc.enabled = false;
+                  F.color = darker;
+                  new Aud("lose.mp3").play();
+
+                  const gameOver = new Container(W, H).center().top();
+                  new Label("GAME OVER", 86, "Bungee+Shade", white)
+                    .center(gameOver)
+                    .mov(0, -120);
+
+                  STYLE = { size: 40, font: "Bungee", once: true };
+                  new Button({
+                    width: 300,
+                    height: 100,
+                    label: "PLAY AGAIN",
+                    bgColor: "#0CB04A",
+                    rollBgColor: "#D03B3B",
+                    corner: 6,
+                  })
+                    .center(gameOver)
+                    .mov(0, 80)
+                    .tap(() => {
+                      gameOver.removeFrom();
+                      F.color = darker;
+                      F.alpha = 1;
+                      gameState.level = 1;
+                      gameState.badges = [false, false, false, false];
+                      makeGame();
+                    });
+                }
+
+                // CHECK GAME WIN
+                if (gameState.badges.every((badge) => badge === true)) {
+                  Ticker.removeAll();
+                  board.removeFrom();
+                  beads.removeFrom();
+                  badgeTile.removeFrom();
+                  scorer.removeFrom();
+                  stopAnimate();
+                  mc.enabled = false;
+                  F.color = darker;
+                  new Aud("win.mp3").play();
+
+                  const gameWin = new Container(W, H).center().top();
+                  new Label("YOU WIN!", 86, "Bungee+Shade", white)
+                    .center(gameWin)
+                    .mov(0, -120);
+
+                  STYLE = { size: 40, font: "Bungee", once: true };
+                  new Button({
+                    width: 300,
+                    height: 100,
+                    label: "PLAY AGAIN",
+                    bgColor: "#0CB04A",
+                    rollBgColor: "#D03B3B",
+                    corner: 6,
+                  })
+                    .center(gameWin)
+                    .mov(0, 80)
+                    .tap(() => {
+                      gameWin.removeFrom();
+                      F.color = darker;
+                      F.alpha = 1;
+                      gameState.level = 1;
+                      gameState.badges = [false, false, false, false];
+                      makeGame();
+                    });
+                }
+              }); // end ticker
+            });
+          } // end makeLevel
+
+          makeLevel(gameState.level);
+        } // end makeGame
+      } // end ready
+    </script>
+    <meta name="viewport" content="width=device-width, user-scalable=no" />
+    <meta
+      name="description"
+      content="Snowman collecting game - Catch snowflakes and collect badges!"
+    />
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" href="assets/snowman.png" />
+  </head>
+  <body>
+    <div
+      id="loading"
+      style="
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+      "
+    >
+      Loading...
+    </div>
+    <script>
+      window.addEventListener("load", () => {
+        document.getElementById("loading").style.display = "none";
+      });
+    </script>
+  </body>
+</html>
