@@ -39,6 +39,7 @@
         "lose.mp3",
         "play.mp3",
         "start.mp3",
+        "win.mp3",
       ];
       const path = "public/assets/";
       new Frame(FIT, 1024, 768, darker, dark, ready, assets, path);
@@ -61,7 +62,7 @@
             width: 100,
             size: 24,
           }).loc(80, 50);
-          scorer.score = 4000;
+          scorer.score = 100;
 
           let snowman = new Pic("snowman.png")
             .reg(CENTER)
@@ -356,6 +357,82 @@
                     });
                   }
                 }, true);
+
+                // CHECK GAME OVER
+                if (scorer.score <= 0) {
+                  Ticker.removeAll();
+                  board.removeFrom();
+                  beads.removeFrom();
+                  badgeTile.removeFrom();
+                  scorer.removeFrom();
+                  stopAnimate();
+                  mc.enabled = false;
+                  F.color = darker;
+                  new Aud("lose.mp3").play();
+
+                  const gameOver = new Container(W, H).center().top();
+                  new Label("GAME OVER", 86, "Bungee+Shade", white)
+                    .center(gameOver)
+                    .mov(0, -120);
+
+                  STYLE = { size: 40, font: "Bungee", once: true };
+                  new Button({
+                    width: 300,
+                    height: 100,
+                    label: "PLAY AGAIN",
+                    bgColor: "#0CB04A",
+                    rollBgColor: "#D03B3B",
+                    corner: 6,
+                  })
+                    .center(gameOver)
+                    .mov(0, 80)
+                    .tap(() => {
+                      gameOver.removeFrom();
+                      F.color = darker;
+                      F.alpha = 1;
+                      gameState.level = 1;
+                      gameState.badges = [false, false, false, false];
+                      makeGame();
+                    });
+                }
+
+                // CHECK GAME WIN
+                if (gameState.badges.every((badge) => badge === true)) {
+                  Ticker.removeAll();
+                  board.removeFrom();
+                  beads.removeFrom();
+                  badgeTile.removeFrom();
+                  scorer.removeFrom();
+                  stopAnimate();
+                  mc.enabled = false;
+                  F.color = darker;
+                  new Aud("win.mp3").play();
+
+                  const gameWin = new Container(W, H).center().top();
+                  new Label("YOU WIN!", 86, "Bungee+Shade", white)
+                    .center(gameWin)
+                    .mov(0, -120);
+
+                  STYLE = { size: 40, font: "Bungee", once: true };
+                  new Button({
+                    width: 300,
+                    height: 100,
+                    label: "PLAY AGAIN",
+                    bgColor: "#0CB04A",
+                    rollBgColor: "#D03B3B",
+                    corner: 6,
+                  })
+                    .center(gameWin)
+                    .mov(0, 80)
+                    .tap(() => {
+                      gameWin.removeFrom();
+                      F.color = darker;
+                      F.alpha = 1;
+                      gameState.level = 1;
+                      gameState.badges = [false, false, false, false];
+                      makeGame();
+                    });
+                }
               }); // end ticker
             });
           } // end makeLevel
