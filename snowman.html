@@ -30,23 +30,142 @@
         "gf_Bungee+Shade",
         "gf_Bungee+Inline",
         "gf_Bungee",
+        "candle.png",
         "snowman.png",
         "snowman-scarf.png",
         "snowman-start.png",
+        "hintButton.png",
+        "hintPane.png",
+        "get-badge.mp3",
         "hit.mp3",
         "intro.mp3",
-        "flake.mp3",
         "lose.mp3",
         "play.mp3",
-        "start.mp3",
+        "touch-candle.mp3",
         "win.mp3",
       ];
       const path = "public/assets/";
       new Frame(FIT, 1024, 768, darker, dark, ready, assets, path);
       function ready() {
-        makeGame();
+        const startButton = new Label({
+          text: "START",
+          size: 100,
+          font: "Bungee",
+          color: black,
+          backgroundColor: white,
+          padding: 40,
+          corner: 10,
+        }).center()
+        .tap(()=>{
+          zog("tapping");
+          startButton.removeFrom();
+          startPic.removeFrom();
+          makeIntro();
+        });
+        const startPic = new Pic("snowman-start.png")
+        startPic.reg(CENTER).sca(0.5).addTo().loc(420, 240).top();
+        
+        let tile;
+        let snowman;
+        function makeIntro() {
+          zog("makeIntro");
+
+          new Aud("intro.mp3").play();
+
+          tile = new Tile(
+            new Pic("snowman.png").reg(CENTER).sca(0.025),
+            9,
+            5,
+            5,
+            5
+          )
+            .center()
+            .animate({
+              props: { alpha: 0 },
+              time: 0.07,
+              sequence: 0.07,
+              call: makeMessage,
+            });
+
+          snowman = new Pic("snowman.png")
+            .reg(CENTER)
+            .sca(0.025)
+            .loc(tile.items[20]);
+        }
+
+        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        // PART 2 - MESSAGE
+
+        //makeMessage();
+        function makeMessage() {
+          zog("makeMessage");
+
+          new Aud("play.mp3").play();
+
+          snowman.wiggle("y", snowman.y, 10, 50, 0.6, 1);
+
+          const message = new Container(W, H).loc(130).bot().animate({
+            from: true,
+            props: { y: -H },
+            time: 2.5,
+          });
+          
+          //new Rectangle(W-60, H-160, "#D03B3B").alp(1).pos(0,0,RIGHT,TOP,message).bot();
+          new Rectangle(350, H, white).alp(0.2).center(message);
+
+          new Label("SNOWMAN", 86, "Bungee+Shade", white).center(message).mov(0, -160);
+          new Label("BY AURELIA", 30, "Bungee+Inline", white).center(message).mov(0, 180);
+          
+          STYLE = {size:50,font:"Bungee", once:true};
+          new Button({
+            width: 200,
+            height: 80,
+            label: "PLAY",
+            bgColor: "#0CB04A",
+            rollBgColor: "#D03B3B",
+            corner: 6,
+          })
+            .center(message)
+            .mov(0, 20)
+            .tap(() => {
+              message.animate({ y: -H }, 0.5, null, makeGame);
+              new Aud("start.mp3").play();
+            });
+          //snowman.stopAnimate();
+        } // end makeMessage
+
+        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        // PART 3 - GAME
+        //makeGame();
         function makeGame() {
           zog("makeGame");
+          const hintButtonPic = new Pic("hintButton.png").reg(CENTER).sca(1);
+          const hintButton = new Button({
+            width: 50,
+            height: 50,
+            label: "",
+            color: black,
+            backing: hintButtonPic,
+          })
+            .pos(50, 40, RIGHT, TOP)
+            .addTo()
+            //.vis(false);
+          hintButton.on("click", () => {
+            hintPane.show();
+          });
+          const hintPanePic = new Pic("hintPane.png").reg(CENTER).sca(0.5);
+          const hintPane = new Pane({
+            width: 650,
+            height: 600,
+            color: white,
+            corner: 10,
+            content: "",
+            close: true,
+            backing: hintPanePic,
+          })
+            .center()
+            .mov(0, -50)
+            .hide();
 
           const badgeTile = new Tile(badgesDash, 4, 1, 20, 0, true).pos(
             0,
@@ -62,13 +181,13 @@
             width: 100,
             size: 24,
           }).loc(80, 50);
-          scorer.score = 100;
+          scorer.score = 4000;
 
-          let snowman = new Pic("snowman.png")
-            .reg(CENTER)
-            .sca(0.025)
-            .loc(300, 400)
-            .addTo();
+          // let snowman = new Pic("snowman.png")
+          //   .reg(CENTER)
+          //   .sca(0.025)
+          //   .loc(300, 400)
+          //   .addTo();
           //.outline();
 
           const mc = new MotionController({
@@ -215,6 +334,22 @@
                 );
               });
 
+              // Add candles
+              const candles = [];
+              for (let i = 0; i < 2; i++) {
+                let pos;
+                do {
+                  pos = positions.pop(); // Get a position from the shuffled array
+                } while (beads.items.some(bead => bead.x === pos.x && bead.y === pos.y));
+
+                const candle = new Pic("candle.png").reg(CENTER).sca(0.02).addTo(board);
+                board.position(candle, pos.x, pos.y);
+                candles.push(candle);
+                zog("Placed candle at position:", pos);
+              }
+
+              const touchCandleSound = new Aud("touch-candle.mp3");
+
               let ticker = Ticker.add(() => {
                 scorer.score -= 1;
                 board.pieces.loop((bead) => {
@@ -268,7 +403,6 @@
                         ) {
                           zog("Level complete! Perfect order!");
 
-                          // 使用 typeCount 计算分数
                           const flakeScore = typeCount.flake * 200;
                           const badgeScore = typeCount.badge * 400;
                           const totalScore = flakeScore + badgeScore;
@@ -304,33 +438,35 @@
                               zog("Badge collected:", badgeIndex);
                             }
                           });
-
+                          STYLE = { size: 36, font: "Bungee", once: true };
                           new Label({
                             text: "Perfect Order!",
-                            color: green,
+                            color: "#0CB04A",
                             backgroundColor: white,
-                            size: 40,
+                            size: 36,
                             corner: 10,
-                            padding: 20,
+                            padding: 30,
                           })
                             .center()
                             .animate({ props: { alpha: 0 }, time: 2 });
                         }
                       } else {
-                        zog("Wrong order!");
-                        new Label({
-                          text: "Wrong Order!",
-                          color: red,
-                          backgroundColor: white,
-                          size: 40,
-                          corner: 10,
-                          padding: 20,
-                        })
-                          .center()
-                          .animate({
-                            props: { alpha: 0 },
-                            time: 2,
-                          });
+                        if (bead.type === "flake" || bead.type === "badge") {
+                          zog("Wrong order!");
+                          STYLE = { size: 36, font: "Bungee", once: true };
+                          new Label({
+                            text: "Wrong Order!",
+                            color: "#D03B3B",
+                            backgroundColor: white,
+                            corner: 10,
+                            padding: 30,
+                          })
+                            .center()
+                            .animate({
+                              props: { alpha: 0 },
+                              time: 2,
+                            });
+                        }
                       }
                     }
 
@@ -358,6 +494,16 @@
                   }
                 }, true);
 
+                // Check if snowman hits a candle
+                candles.forEach(candle => {
+                  if (candle.hitTestBounds(snowman)) {
+                    touchCandleSound.play();
+                    scorer.score -= 200;
+                    candle.removeFrom();
+                    zog("Snowman hit a candle! Score deducted by 200.");
+                  }
+                });
+
                 // CHECK GAME OVER
                 if (scorer.score <= 0) {
                   Ticker.removeAll();
@@ -365,6 +511,8 @@
                   beads.removeFrom();
                   badgeTile.removeFrom();
                   scorer.removeFrom();
+                  hintButton.removeFrom();
+                  hintPane.removeFrom();
                   stopAnimate();
                   mc.enabled = false;
                   F.color = darker;
@@ -392,6 +540,7 @@
                       F.alpha = 1;
                       gameState.level = 1;
                       gameState.badges = [false, false, false, false];
+                      S.update();
                       makeGame();
                     });
                 }
@@ -403,6 +552,8 @@
                   beads.removeFrom();
                   badgeTile.removeFrom();
                   scorer.removeFrom();
+                  hintButton.removeFrom();
+                  hintPane.removeFrom();
                   stopAnimate();
                   mc.enabled = false;
                   F.color = darker;
@@ -430,6 +581,7 @@
                       F.alpha = 1;
                       gameState.level = 1;
                       gameState.badges = [false, false, false, false];
+                      S.update();
                       makeGame();
                     });
                 }
