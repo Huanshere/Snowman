@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>ZIM - Code Creativity</title>
+    <title>Snowman</title>
 
     <!-- zimjs.com - JavaScript Canvas Framework -->
     <script type="module">
@@ -43,6 +43,7 @@
         "play.mp3",
         "touch-candle.mp3",
         "win.mp3",
+        "start.mp3",
       ];
       const path = "public/assets/";
       new Frame(FIT, 1024, 768, darker, dark, ready, assets, path);
@@ -55,16 +56,17 @@
           backgroundColor: white,
           padding: 40,
           corner: 10,
-        }).center()
-        .tap(()=>{
-          zog("tapping");
-          startButton.removeFrom();
-          startPic.removeFrom();
-          makeIntro();
-        });
-        const startPic = new Pic("snowman-start.png")
+        })
+          .center()
+          .tap(() => {
+            zog("tapping");
+            startButton.removeFrom();
+            startPic.removeFrom();
+            makeIntro();
+          });
+        const startPic = new Pic("snowman-start.png");
         startPic.reg(CENTER).sca(0.5).addTo().loc(420, 240).top();
-        
+
         let tile;
         let snowman;
         function makeIntro() {
@@ -104,19 +106,26 @@
 
           snowman.wiggle("y", snowman.y, 10, 50, 0.6, 1);
 
-          const message = new Container(W, H).loc(130).bot().animate({
-            from: true,
-            props: { y: -H },
-            time: 2.5,
-          });
-          
+          const message = new Container(W, H)
+            .loc(130)
+            .bot()
+            .animate({
+              from: true,
+              props: { y: -H },
+              time: 2.5,
+            });
+
           //new Rectangle(W-60, H-160, "#D03B3B").alp(1).pos(0,0,RIGHT,TOP,message).bot();
           new Rectangle(350, H, white).alp(0.2).center(message);
 
-          new Label("SNOWMAN", 86, "Bungee+Shade", white).center(message).mov(0, -160);
-          new Label("BY AURELIA", 30, "Bungee+Inline", white).center(message).mov(0, 180);
-          
-          STYLE = {size:50,font:"Bungee", once:true};
+          new Label("SNOWMAN", 86, "Bungee+Shade", white)
+            .center(message)
+            .mov(0, -160);
+          new Label("BY AURELIA", 30, "Bungee+Inline", white)
+            .center(message)
+            .mov(0, 180);
+
+          STYLE = { size: 50, font: "Bungee", once: true };
           new Button({
             width: 200,
             height: 80,
@@ -139,33 +148,9 @@
         //makeGame();
         function makeGame() {
           zog("makeGame");
-          const hintButtonPic = new Pic("hintButton.png").reg(CENTER).sca(1);
-          const hintButton = new Button({
-            width: 50,
-            height: 50,
-            label: "",
-            color: black,
-            backing: hintButtonPic,
-          })
-            .pos(50, 40, RIGHT, TOP)
-            .addTo()
-            //.vis(false);
-          hintButton.on("click", () => {
-            hintPane.show();
-          });
-          const hintPanePic = new Pic("hintPane.png").reg(CENTER).sca(0.5);
-          const hintPane = new Pane({
-            width: 650,
-            height: 600,
-            color: white,
-            corner: 10,
-            content: "",
-            close: true,
-            backing: hintPanePic,
-          })
-            .center()
-            .mov(0, -50)
-            .hide();
+
+          let scorerTicker;
+          let beadTicker;
 
           const badgeTile = new Tile(badgesDash, 4, 1, 20, 0, true).pos(
             0,
@@ -181,7 +166,8 @@
             width: 100,
             size: 24,
           }).loc(80, 50);
-          scorer.score = 4000;
+          scorer.score = 10000;
+          //scorer.score = 100;
 
           // let snowman = new Pic("snowman.png")
           //   .reg(CENTER)
@@ -230,6 +216,52 @@
             new Pic("badge4.png").reg(CENTER).sca(0.019).alp(0)
           );
 
+          // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+          // make the hints
+          const hintButtonPic = new Pic("hintButton.png").reg(CENTER).sca(1);
+          const hintButton = new Button({
+            width: 50,
+            height: 50,
+            label: "",
+            color: black,
+            backing: hintButtonPic,
+          })
+            .pos(50, 40, RIGHT, TOP)
+            .addTo();
+          //.vis(false);
+          const hintPanePic = new Pic("hintPane.png").reg(CENTER).sca(0.5);
+          const hintPane = new Pane({
+            width: 650,
+            height: 600,
+            color: white,
+            corner: 10,
+            content: "",
+            close: true,
+            backing: hintPanePic,
+          })
+            .center()
+            .mov(0, -50)
+            .hide();
+
+          hintButton.on("click", () => {
+            hintPane.show();
+          });
+          // hintPane.on("close", () => {
+          //   hintPane.hide();
+          //   Ticker.add(scorerTicker);
+          //   Ticker.add(beadTicker);
+          //   mc.pause(false);
+          //   S.update();
+          // });
+          const startHintPane = hintPane.clone();
+          startHintPane.show();
+          startHintPane.on("close", () => {
+            startHintPane.hide();
+            makeLevel(gameState.level);
+          });
+
+          // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+          // make the level
           function makeLevel(level) {
             const config = getFlakeConfig(gameState.level);
 
@@ -340,9 +372,16 @@
                 let pos;
                 do {
                   pos = positions.pop(); // Get a position from the shuffled array
-                } while (beads.items.some(bead => bead.x === pos.x && bead.y === pos.y));
+                } while (
+                  beads.items.some(
+                    (bead) => bead.x === pos.x && bead.y === pos.y
+                  )
+                );
 
-                const candle = new Pic("candle.png").reg(CENTER).sca(0.02).addTo(board);
+                const candle = new Pic("candle.png")
+                  .reg(CENTER)
+                  .sca(0.02)
+                  .addTo(board);
                 board.position(candle, pos.x, pos.y);
                 candles.push(candle);
                 zog("Placed candle at position:", pos);
@@ -350,8 +389,12 @@
 
               const touchCandleSound = new Aud("touch-candle.mp3");
 
-              let ticker = Ticker.add(() => {
+              // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+              // make the score and bead tickers
+              scorerTicker = Ticker.add(() => {
                 scorer.score -= 1;
+              });
+              beadTicker = Ticker.add(() => {
                 board.pieces.loop((bead) => {
                   if (bead.hitTestBounds(snowman) && !bead.isHit) {
                     bead.isHit = true;
@@ -495,7 +538,7 @@
                 }, true);
 
                 // Check if snowman hits a candle
-                candles.forEach(candle => {
+                candles.forEach((candle) => {
                   if (candle.hitTestBounds(snowman)) {
                     touchCandleSound.play();
                     scorer.score -= 200;
@@ -504,13 +547,14 @@
                   }
                 });
 
-                // CHECK GAME OVER
+                //  CHECK GAME OVER
                 if (scorer.score <= 0) {
+                  zog("game over");
                   Ticker.removeAll();
                   board.removeFrom();
                   beads.removeFrom();
-                  badgeTile.removeFrom();
                   scorer.removeFrom();
+                  badgeTile.removeFrom();
                   hintButton.removeFrom();
                   hintPane.removeFrom();
                   stopAnimate();
@@ -518,7 +562,8 @@
                   F.color = darker;
                   new Aud("lose.mp3").play();
 
-                  const gameOver = new Container(W, H).center().top();
+                  const gameOver = new Container(W, H).center().top(); //.outline();
+                  new Rectangle(W, H, darker).addTo(gameOver);
                   new Label("GAME OVER", 86, "Bungee+Shade", white)
                     .center(gameOver)
                     .mov(0, -120);
@@ -540,26 +585,31 @@
                       F.alpha = 1;
                       gameState.level = 1;
                       gameState.badges = [false, false, false, false];
-                      S.update();
+                      gameState.currentSequence = [];
                       makeGame();
                     });
-                }
+                } // end if scorer.score === 0
 
                 // CHECK GAME WIN
-                if (gameState.badges.every((badge) => badge === true)) {
+                if (
+                  //gameState.badges.every((badge) => badge === true)
+                  gameState.badges[0] === true
+                ) {
+                  zog("game win");
                   Ticker.removeAll();
                   board.removeFrom();
                   beads.removeFrom();
-                  badgeTile.removeFrom();
                   scorer.removeFrom();
                   hintButton.removeFrom();
                   hintPane.removeFrom();
+                  badgeTile.removeFrom();
                   stopAnimate();
                   mc.enabled = false;
                   F.color = darker;
                   new Aud("win.mp3").play();
 
-                  const gameWin = new Container(W, H).center().top();
+                  const gameWin = new Container(W, H).center().top(); //.outline();
+                  //new Rectangle(W, H, darker).addTo(gameWin);
                   new Label("YOU WIN!", 86, "Bungee+Shade", white)
                     .center(gameWin)
                     .mov(0, -120);
@@ -581,17 +631,16 @@
                       F.alpha = 1;
                       gameState.level = 1;
                       gameState.badges = [false, false, false, false];
-                      S.update();
+                      gameState.currentSequence = [];
                       makeGame();
                     });
-                }
-              }); // end ticker
-            });
+                } // end game win
+              }); // end beads ticker loop
+            }); // end timeout
           } // end makeLevel
-
-          makeLevel(gameState.level);
+          S.update();
         } // end makeGame
-      } // end ready
+      }
     </script>
     <meta name="viewport" content="width=device-width, user-scalable=no" />
     <meta
