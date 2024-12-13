@@ -187,8 +187,8 @@
             width: 100,
             size: 24,
           }).loc(80, 50);
-          scorer.score = 10000;
-          //scorer.score = 300;
+          //scorer.score = 10000;
+          scorer.score = 300;
 
           let snowman = new Pic("snowman.png")
             .reg(CENTER)
@@ -420,72 +420,9 @@
               touchCandleSound = new Aud("touch-candle.mp3");
 
               // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-              function win(){};
-              function lose(){
-                zog("game over");
-                  gameOvered = true;
-                  Ticker.removeAll();
-                  board.removeFrom();
-                  beads.removeFrom();
-                  scorer.removeFrom();
-                  badgeTile.removeFrom();
-                  hintButton.removeFrom();
-                  hintPane.removeFrom();
-                  stopAnimate("flakes");
-                  stopAnimate("beadTicker");
-                  mc.enabled = false;
-                  F.color = darker;
-                  new Aud("lose.mp3").play();
-
-                  const gameOver = new Container(W, H).center().top(); //.outline();
-                  //new Rectangle(W, H, darker).addTo(gameOver);
-                  new Label("GAME OVER", 86, "Bungee+Shade", white)
-                    .center(gameOver)
-                    .mov(0, -120);
-
-                  STYLE = { size: 40, font: "Bungee", once: true };
-                  new Button({
-                    width: 300,
-                    height: 100,
-                    label: "PLAY AGAIN",
-                    bgColor: "#0CB04A",
-                    rollBgColor: "#D03B3B",
-                    corner: 6,
-                  })
-                    .center(gameOver)
-                    .mov(0, 80)
-                    .tap(() => {
-                      gameOver.removeFrom();
-                      F.color = darker;
-                      F.alpha = 1;
-                      gameState.level = 1;
-                      gameState.badges = [false, false, false, false];
-                      gameState.currentSequence = [];
-                      gameOvered = false;
-                      makeGame();
-                    });
-              };
-
-              // make the ticker
-              ticker = Ticker.add(() => {
-                scorer.score -= 1;
-                //  CHECK GAME OVER
-                if (gameOvered) return;
-                if (scorer.score <= 0) {
-                  lose();
-                  return; // Exit the function early if the game is over
-                } // end if scorer.score === 0
-
-                // CHECK GAME WIn
-                if (gameWon) return; // Check if the game is already won
-
-                if (
-                  //gameState.badges.every((badge) => badge === true)
-                  gameState.badges[0] === true
-                ) {
-                  zog("game win");
+              function win(){
+                zog("game win");
                   gameWon = true; // Set the flag to true when the game is won
-                  Ticker.removeAll();
                   board.removeFrom();
                   beads.removeFrom();
                   scorer.removeFrom();
@@ -497,13 +434,11 @@
                   mc.enabled = false;
                   F.color = darker;
                   new Aud("win.mp3").play();
-
                   const gameWin = new Container(W, H).center().top(); //.outline();
-                  //new Rectangle(W, H, darker).addTo(gameWin);
+                  new Rectangle(W, H, darker).addTo(gameWin);
                   new Label("YOU WIN!", 86, "Bungee+Shade", white)
                     .center(gameWin)
                     .mov(0, -120);
-
                   STYLE = { size: 40, font: "Bungee", once: true };
                   new Button({
                     width: 300,
@@ -525,10 +460,53 @@
                       gameWon = false; // Reset the flag when starting a new game
                       makeGame();
                     });
+                  S.update();
+              };
 
-                  return; // Exit the function early if the game is won
-                } // end game win
+              function lose(){
+                  zog("game over");
+                  gameOvered = true;
+                  board.removeFrom();
+                  beads.removeFrom();
+                  scorer.removeFrom();
+                  badgeTile.removeFrom();
+                  hintButton.removeFrom();
+                  hintPane.removeFrom();
+                  stopAnimate("flakes");
+                  stopAnimate("beadTicker");
+                  mc.enabled = false;
+                  F.color = darker;
+                  new Aud("lose.mp3").play();
 
+                  const gameOver = new Container(W, H).center().top(); //.outline();
+                  new Rectangle(W, H, darker).addTo(gameOver);
+                  new Label("GAME OVER", 86, "Bungee+Shade", white)
+                    .center(gameOver)
+                    .mov(0, -120);
+                  STYLE = { size: 40, font: "Bungee", once: true };
+                  new Button({
+                    width: 300,
+                    height: 100,
+                    label: "PLAY AGAIN",
+                    bgColor: "#0CB04A",
+                    rollBgColor: "#D03B3B",
+                    corner: 6,
+                  })
+                    .center(gameOver)
+                    .mov(0, 80)
+                    .tap(() => {
+                      gameOver.removeFrom();
+                      F.color = darker;
+                      F.alpha = 1;
+                      gameState.level = 1;
+                      gameState.badges = [false, false, false, false];
+                      gameState.currentSequence = [];
+                      gameOvered = false;
+                      makeGame();
+                    });
+                  S.update();
+              };
+              function testBeads(){
                 board.pieces.loop((bead) => {
                   if (bead.hitTestBounds(snowman) && !bead.isHit) {
                     bead.isHit = true;
@@ -675,7 +653,37 @@
                   }
                 }, true);
 
-                // Check if snowman hits a candle
+              };
+              // make the ticker
+              zogo();
+              if (ticker) Ticker.remove(ticker);
+              ticker = Ticker.add(() => {
+                scorer.score -= 1;
+                //  CHECK GAME OVER
+                if (gameOvered) return;
+                if (scorer.score <= 0) {
+                  timeout(1, lose);
+                  zogr();
+                  Ticker.remove(ticker);
+                  return; // Exit the function early if the game is over
+                } // end if scorer.score === 0
+
+                // CHECK GAME WIn
+                if (gameWon) return; // Check if the game is already won
+                if (
+                  // gameState.badges.every((badge) => badge === true)
+                  gameState.badges[0] === true
+                ) {
+                  // winning
+                  timeout(1, win);
+                  zogg();
+                  Ticker.remove(ticker);
+                  return; // Exit the function early if the game is won
+                } // end game win
+
+                testBeads();
+
+               // Check if snowman hits a candle
                 candles.forEach((candle) => {
                   if (candle.hitTestBounds(snowman)) {
                     touchCandleSound.play();
