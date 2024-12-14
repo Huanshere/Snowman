@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title>Snowman</title>
-
+    <link rel="icon" href="public/assets/favicon.ico" type="image/x-icon" />
     <!-- zimjs.com - JavaScript Canvas Framework -->
     <script type="module">
       import zim from "https://zimjs.com/cdn/017/zim_game";
@@ -145,45 +145,66 @@
 
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // PART 3 - GAME
+
+        let scorerTicker;
+        let beadTicker;
+        let badgeTile;
+        let badgeContainer;
+        let scorer;
+        let mc;
+        let hitSound;
+        let badgeSound;
+        let hintButtonPic;
+        let hintButton;
+        let hintPanePic;
+        let hintPane;
+        let startHintPane;
+        let candles;
+        let touchCandleSound;
+        let board;
+        let beads;
+        let gameOver;
+        let gameWin;
+        let ticker;
+        let myTimeout;
+        let gameWon = false; // Add a flag to track if the game is won
+        let gameOvered = false; // Add a flag to track if the game is over
         //makeGame();
         function makeGame() {
           zog("makeGame");
 
-          let scorerTicker;
-          let beadTicker;
-
-          const badgeTile = new Tile(badgesDash, 4, 1, 20, 0, true).pos(
+          badgeTile = new Tile(badgesDash, 4, 1, 20, 0, true).pos(
             0,
             10,
             CENTER,
             TOP
           );
-          const badgeContainer = new Container(W - 100, H - 100).center();
+          badgeContainer = new Container(W - 100, H - 100).center();
 
-          const scorer = new Scorer({
+          scorer = new Scorer({
             backgroundColor: grey,
             color: white,
             width: 100,
             size: 24,
           }).loc(80, 50);
-          scorer.score = 10000;
-          //scorer.score = 100;
+          scorer.score = 15000;
+          //scorer.score = 300;
 
           // let snowman = new Pic("snowman.png")
           //   .reg(CENTER)
           //   .sca(0.025)
           //   .loc(300, 400)
           //   .addTo();
-          //.outline();
+          // //.outline();
 
-          const mc = new MotionController({
+          mc = new MotionController({
             target: snowman,
             type: "mousemove",
             speed: 20,
           });
 
-          const hitSound = new Aud("hit.mp3");
-          const badgeSound = new Aud("get-badge.mp3");
+          hitSound = new Aud("hit.mp3");
+          badgeSound = new Aud("get-badge.mp3");
 
           const gameState = {
             level: 1,
@@ -218,8 +239,8 @@
 
           // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
           // make the hints
-          const hintButtonPic = new Pic("hintButton.png").reg(CENTER).sca(1);
-          const hintButton = new Button({
+          hintButtonPic = new Pic("hintButton.png").reg(CENTER).sca(1);
+          hintButton = new Button({
             width: 50,
             height: 50,
             label: "",
@@ -229,8 +250,8 @@
             .pos(50, 40, RIGHT, TOP)
             .addTo();
           //.vis(false);
-          const hintPanePic = new Pic("hintPane.png").reg(CENTER).sca(0.5);
-          const hintPane = new Pane({
+          hintPanePic = new Pic("hintPane.png").reg(CENTER).sca(0.5);
+          hintPane = new Pane({
             width: 650,
             height: 600,
             color: white,
@@ -244,19 +265,19 @@
             .hide();
 
           hintButton.on("click", () => {
-            hintPane.show();
+            Ticker.remove(ticker);
+            myTimeout.pause();
+            mc.pause();
+            snowman.animate({ alpha: 0 }, 0.5);
+            hintPane.show(() => {
+              Ticker.add(ticker);
+              myTimeout.pause(false);
+              mc.pause(false);
+              snowman.animate({ alpha: 1 }, 0.5);
+            });
           });
-          // hintPane.on("close", () => {
-          //   hintPane.hide();
-          //   Ticker.add(scorerTicker);
-          //   Ticker.add(beadTicker);
-          //   mc.pause(false);
-          //   S.update();
-          // });
-          const startHintPane = hintPane.clone();
-          startHintPane.show();
-          startHintPane.on("close", () => {
-            startHintPane.hide();
+          startHintPane = hintPane.clone();
+          startHintPane.show(() => {
             makeLevel(gameState.level);
           });
 
@@ -271,20 +292,20 @@
               badge: 0,
             };
 
-            const board = new Board({
+            board = new Board({
               size: 80,
               cols: 12,
               rows: 7,
               isometric: false,
               backgroundColor: darker,
               borderColor: grey,
-              borderWidth: 2,
+              borderWidth: 0,
             })
               .center()
               .mov(0, 60)
               .bot();
 
-            const beads = new Beads({
+            beads = new Beads({
               path: new Squiggle({
                 color: grey,
                 points: [
@@ -337,10 +358,29 @@
               props: { alpha: 1 },
               time: 1,
               sequence: 0.1,
+              id: "flakes",
             });
 
-            // Wait 5 seconds then distribute flakes
-            timeout(5, () => {
+            // function getTimeoutDuration
+            function getTimeoutDuration(level) {
+              const timeoutConfig = getFlakeConfig(level);
+              const beadCount = timeoutConfig.count;
+
+              // Map bead count to timeout duration
+              const timeMap = {
+                2: 3, // Level 1: 2 beads = 3 seconds
+                3: 4, // Level 2: 3 beads = 4 seconds
+                4: 5, // Level 3/4: 4 beads = 5 seconds
+                5: 6, // Level 5+: 5 beads = 6 seconds
+              };
+
+              return timeMap[beadCount] || 6; // Default to 6 seconds if count not found
+            }
+
+            const timeoutDuration = getTimeoutDuration(level);
+            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            // TIMEOUT
+            myTimeout = timeout(timeoutDuration, () => {
               // Create array of all possible board positions
               const positions = [];
               for (let x = 0; x <= 11; x++) {
@@ -367,7 +407,7 @@
               });
 
               // Add candles
-              const candles = [];
+              candles = [];
               for (let i = 0; i < 2; i++) {
                 let pos;
                 do {
@@ -387,16 +427,102 @@
                 zog("Placed candle at position:", pos);
               }
 
-              const touchCandleSound = new Aud("touch-candle.mp3");
+              touchCandleSound = new Aud("touch-candle.mp3");
 
               // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-              // make the score and bead tickers
-              scorerTicker = Ticker.add(() => {
-                scorer.score -= 1;
-              });
-              beadTicker = Ticker.add(() => {
+              // function win and lose
+              function win() {
+                zog("game win");
+                gameWon = true; // Set the flag to true when the game is won
+                board.removeFrom();
+                beads.removeFrom();
+                scorer.removeFrom();
+                hintButton.removeFrom();
+                hintPane.removeFrom();
+                badgeTile.removeFrom();
+                stopAnimate("flakes");
+                stopAnimate("beadTicker");
+                mc.enabled = false;
+                F.color = darker;
+                new Aud("win.mp3").play();
+                const gameWin = new Container(W, H).center().top(); //.outline();
+                new Rectangle(W, H, darker).addTo(gameWin);
+                new Label("YOU WIN!", 86, "Bungee+Shade", white)
+                  .center(gameWin)
+                  .mov(0, -120);
+                STYLE = { size: 40, font: "Bungee", once: true };
+                new Button({
+                  width: 300,
+                  height: 100,
+                  label: "PLAY AGAIN",
+                  bgColor: "#0CB04A",
+                  rollBgColor: "#D03B3B",
+                  corner: 6,
+                })
+                  .center(gameWin)
+                  .mov(0, 80)
+                  .tap(() => {
+                    gameWin.removeFrom();
+                    F.color = darker;
+                    F.alpha = 1;
+                    gameState.level = 1;
+                    gameState.badges = [false, false, false, false];
+                    gameState.currentSequence = [];
+                    gameWon = false; // Reset the flag when starting a new game
+                    makeGame();
+                  });
+                S.update();
+              }
+
+              function lose() {
+                zog("game over");
+                gameOvered = true;
+                board.removeFrom();
+                beads.removeFrom();
+                scorer.removeFrom();
+                badgeTile.removeFrom();
+                hintButton.removeFrom();
+                hintPane.removeFrom();
+                stopAnimate("flakes");
+                stopAnimate("beadTicker");
+                mc.enabled = false;
+                F.color = darker;
+                new Aud("lose.mp3").play();
+
+                const gameOver = new Container(W, H).center().top(); //.outline();
+                new Rectangle(W, H, darker).addTo(gameOver);
+                new Label("GAME OVER", 86, "Bungee+Shade", white)
+                  .center(gameOver)
+                  .mov(0, -120);
+                STYLE = { size: 40, font: "Bungee", once: true };
+                new Button({
+                  width: 300,
+                  height: 100,
+                  label: "PLAY AGAIN",
+                  bgColor: "#0CB04A",
+                  rollBgColor: "#D03B3B",
+                  corner: 6,
+                })
+                  .center(gameOver)
+                  .mov(0, 80)
+                  .tap(() => {
+                    gameOver.removeFrom();
+                    F.color = darker;
+                    F.alpha = 1;
+                    gameState.level = 1;
+                    gameState.badges = [false, false, false, false];
+                    gameState.currentSequence = [];
+                    gameOvered = false;
+                    makeGame();
+                  });
+                S.update();
+              }
+
+              // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+              // function testBeads
+              function testBeads() {
                 board.pieces.loop((bead) => {
-                  if (bead.hitTestBounds(snowman) && !bead.isHit) {
+                  if (bead.hitTestReg(snowman) && !bead.isHit) {
                     bead.isHit = true;
                     hitSound.play();
 
@@ -492,28 +618,26 @@
                           }).center();
                           perfectOrderLabel.animate({
                             props: { alpha: 0 },
-                            time: 2,
-                            call: () => {
-                              perfectOrderLabel.vis(false);
-                            },
+                            time: 1.5,
+                            id: "perfectOrderLabel",
                           });
                         }
                       } else {
                         if (bead.type === "flake" || bead.type === "badge") {
                           zog("Wrong order!");
                           STYLE = { size: 36, font: "Bungee", once: true };
-                          new Label({
+                          const wrongOrderLabel = new Label({
                             text: "Wrong Order!",
                             color: "#D03B3B",
                             backgroundColor: white,
                             corner: 10,
                             padding: 30,
-                          })
-                            .center()
-                            .animate({
-                              props: { alpha: 0 },
-                              time: 2,
-                            });
+                          }).center();
+                          wrongOrderLabel.animate({
+                            props: { alpha: 0 },
+                            time: 1.5,
+                            id: "wrongOrderLabel",
+                          });
                         }
                       }
                     }
@@ -538,109 +662,52 @@
                           makeLevel(gameState.level);
                         }
                       },
+                      id: "beadTicker",
                     });
                   }
                 }, true);
+              }
+
+              // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+              // make the ticker
+              //zogo();
+              if (ticker) Ticker.remove(ticker); // remove ticker if it exists
+              ticker = Ticker.add(() => {
+                scorer.score -= 1;
+                //  check game over
+                if (gameOvered) return;
+                if (scorer.score <= 0) {
+                  timeout(1, lose);
+                  //zogr();
+                  Ticker.remove(ticker);
+                  return; // Exit the function early if the game is over
+                } // end if scorer.score === 0
+
+                // check game win
+                if (gameWon) return; // Check if the game is already won
+                if (
+                  gameState.badges.every((badge) => badge === true)
+                  //gameState.badges[0] === true
+                ) {
+                  // winning
+                  timeout(1, win);
+                  //zogg();
+                  Ticker.remove(ticker);
+                  return; // Exit the function early if the game is won
+                } // end game win
+
+                testBeads();
 
                 // Check if snowman hits a candle
                 candles.forEach((candle) => {
-                  if (candle.hitTestBounds(snowman)) {
+                  if (candle.hitTestReg(snowman)) {
                     touchCandleSound.play();
                     scorer.score -= 200;
                     candle.removeFrom();
                     zog("Snowman hit a candle! Score deducted by 200.");
                   }
                 });
-
-                //  CHECK GAME OVER
-                if (scorer.score <= 0) {
-                  zog("game over");
-                  Ticker.removeAll();
-                  board.removeFrom();
-                  beads.removeFrom();
-                  scorer.removeFrom();
-                  badgeTile.removeFrom();
-                  hintButton.removeFrom();
-                  hintPane.removeFrom();
-                  stopAnimate();
-                  mc.enabled = false;
-                  F.color = darker;
-                  new Aud("lose.mp3").play();
-
-                  const gameOver = new Container(W, H).center().top(); //.outline();
-                  new Rectangle(W, H, darker).addTo(gameOver);
-                  new Label("GAME OVER", 86, "Bungee+Shade", white)
-                    .center(gameOver)
-                    .mov(0, -120);
-
-                  STYLE = { size: 40, font: "Bungee", once: true };
-                  new Button({
-                    width: 300,
-                    height: 100,
-                    label: "PLAY AGAIN",
-                    bgColor: "#0CB04A",
-                    rollBgColor: "#D03B3B",
-                    corner: 6,
-                  })
-                    .center(gameOver)
-                    .mov(0, 80)
-                    .tap(() => {
-                      gameOver.removeFrom();
-                      F.color = darker;
-                      F.alpha = 1;
-                      gameState.level = 1;
-                      gameState.badges = [false, false, false, false];
-                      gameState.currentSequence = [];
-                      makeGame();
-                    });
-                } // end if scorer.score === 0
-
-                // CHECK GAME WIN
-                if (
-                  //gameState.badges.every((badge) => badge === true)
-                  gameState.badges[0] === true
-                ) {
-                  zog("game win");
-                  Ticker.removeAll();
-                  board.removeFrom();
-                  beads.removeFrom();
-                  scorer.removeFrom();
-                  hintButton.removeFrom();
-                  hintPane.removeFrom();
-                  badgeTile.removeFrom();
-                  //stopAnimate();
-                  mc.enabled = false;
-                  F.color = darker;
-                  new Aud("win.mp3").play();
-
-                  const gameWin = new Container(W, H).center().top(); //.outline();
-                  //new Rectangle(W, H, darker).addTo(gameWin);
-                  new Label("YOU WIN!", 86, "Bungee+Shade", white)
-                    .center(gameWin)
-                    .mov(0, -120);
-
-                  STYLE = { size: 40, font: "Bungee", once: true };
-                  new Button({
-                    width: 300,
-                    height: 100,
-                    label: "PLAY AGAIN",
-                    bgColor: "#0CB04A",
-                    rollBgColor: "#D03B3B",
-                    corner: 6,
-                  })
-                    .center(gameWin)
-                    .mov(0, 80)
-                    .tap(() => {
-                      gameWin.removeFrom();
-                      F.color = darker;
-                      F.alpha = 1;
-                      gameState.level = 1;
-                      gameState.badges = [false, false, false, false];
-                      gameState.currentSequence = [];
-                      makeGame();
-                    });
-                } // end game win
-              }); // end beads ticker loop
+              }); // end ticker loop
             }); // end timeout
           } // end makeLevel
           S.update();
